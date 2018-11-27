@@ -26,7 +26,7 @@ SECRET_KEY = '=6z=_!+vp3m03!i8@!qj+e3m!!1_ribop(oa3%tbpig(vy^+bi'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '35.198.197.21']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '35.231.75.74']
 
 
 # Application definition
@@ -112,9 +112,11 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.0/howto/static-files/
 
+CORS_ORIGIN_ALLOW_ALL = True
+
 STATIC_URL = '/static/'
 
-SITE_URL = 'http://localhost'
+SITE_URL = 'http://35.231.75.74'
 
 DATABASES = {
     'default': cloud_db

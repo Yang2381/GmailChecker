@@ -119,7 +119,7 @@ def add_count(request, sha1):
 
     result = db_manager.add_count(sha1)
 
-    return HttpResponse(json.dumps(result))
+    return HttpResponse('')
 
 
 def create_simple_success_response(msg=None):
