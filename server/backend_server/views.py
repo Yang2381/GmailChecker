@@ -15,7 +15,6 @@ from django.conf import settings
 from . import db_manager
 from mail_auth.auth import Auth
 
-
 @csrf_exempt
 def index(request):
     for key, value in request.session.items():
@@ -26,6 +25,19 @@ def index(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def login(request):
+
+    token = request.POST.get('token', None)
+    if token:
+        result = db_manager.validate_with_token(token)
+        if result['success']:
+            request.session['email'] = result['data']['email']
+            request.session['nick'] = result['data']['nick']
+            ret = {
+                'success': True,
+                'nick': result['data']['nick'],
+                'token': result['data']['token']
+            }
+            return HttpResponse(json.dumps(ret))
 
     email = request.POST.get('email', None)
     password = request.POST.get('password', None)
@@ -42,7 +54,8 @@ def login(request):
 
     ret = {
         'success': True,
-        'nick': result['data']['nick']
+        'nick': result['data']['nick'],
+        'token': result['data']['token']
     }
 
     return HttpResponse(json.dumps(ret))
@@ -104,7 +117,7 @@ def get_events(request):
     if not auth.is_login:
         return create_failure_response('Not logged in')
 
-    limit = int( request.GET.get('limit', 10) )
+    limit = int(request.GET.get('limit', 10))
     if limit > 20:
         limit = 20
 
@@ -119,7 +132,7 @@ def add_count(request, sha1):
 
     result = db_manager.add_count(sha1)
 
-    return HttpResponse(json.dumps(result))
+    return HttpResponse("")
 
 
 def create_simple_success_response(msg=None):

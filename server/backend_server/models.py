@@ -3,10 +3,12 @@ from django.db import models
 
 # Create your models here.
 class User(models.Model):
-	email = models.CharField(max_length=128, db_index=True)
-	password = models.CharField(max_length=64)
-	nick = models.CharField(max_length=128, null=True)
-	created_at = models.DateTimeField(auto_now_add=True)
+    email = models.CharField(max_length=128, db_index=True)
+    password = models.CharField(max_length=64)
+    nick = models.CharField(max_length=128, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    token = models.CharField(max_length=64, null=True)
+    token_expire = models.DateField(null=True)
 
 
 class Email(models.Model):
