@@ -2,6 +2,7 @@ from django.db.models import F
 from django.utils.timezone import localtime, now
 from django.forms.models import model_to_dict
 from .models import User, Email
+from datetime import datetime, timedelta
 import hashlib
 import random
 import string
@@ -30,6 +31,29 @@ def create_user(email, pwd, nick):
     return ret
 
 
+def validate_with_token(token):
+
+    ret = {
+        'success': False
+    }
+
+    succ = User.objects.filter(token=token)
+    if succ.exists():
+        succ = succ[0]
+        if succ.token_expire < datetime.today().date():
+            return ret
+        ret['data'] = {
+            'email': succ.email,
+            'nick':  succ.nick,
+            'token': succ.token,
+            'expire': succ.token_expire
+        }
+        ret['success'] = True
+        return ret
+    else:
+        return ret
+
+
 def validate(email, pwd):
 
     ret = {
@@ -39,15 +63,21 @@ def validate(email, pwd):
     succ = User.objects.filter(email=email, password=pwd)
     if succ.exists():
         succ = succ[0]
+        new_token = get_random_string(40)
+        new_expire = datetime.now() + timedelta(days=7)
+        succ.token = new_token
+        succ.token_expire = new_expire
+        succ.save()
         ret['data'] = {
             'email': succ.email,
-            'nick':  succ.nick
+            'nick':  succ.nick,
+            'token': succ.token,
+            'expire': succ.token_expire
         }
         ret['success'] = True
         return ret
     else:
         return ret
-
 
 def add_count(sha1):
 
@@ -100,7 +130,7 @@ def add_record(created_user, src, tar, detail, mail_id=None):
         ret['msg'] = 'duplicate record'
         return ret
 
-    email = Email(create_user=created_user, src_email=src, tar_email=tar, sha1=sha1, message_id=mail_id, detail=detail)
+    email = Email(create_user=created_user, src_email=src, tar_email=tar, sha1=sha1, message_id=mail_id, detail=detail, count = -1)
     email.save()
 
     ret['success'] = True
