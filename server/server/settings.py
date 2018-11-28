@@ -115,7 +115,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 STATIC_URL = '/static/'
 
-SITE_URL = 'http://35.231.75.74'
+SITE_URL = 'http://localhost:8000'
 
 DATABASES = {
     'default': cloud_db

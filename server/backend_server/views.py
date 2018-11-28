@@ -6,6 +6,7 @@ import time
 import random
 import re
 import json
+from PIL import Image
 
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
@@ -54,6 +55,7 @@ def login(request):
 
     ret = {
         'success': True,
+        'email': email,
         'nick': result['data']['nick'],
         'token': result['data']['token']
     }
@@ -110,16 +112,16 @@ def create_pair(request):
 
 
 @csrf_exempt
-@require_http_methods(["GET"])
+@require_http_methods(["POST"])
 def get_events(request):
 
     auth = Auth(request)
     if not auth.is_login:
         return create_failure_response('Not logged in')
 
-    limit = int(request.GET.get('limit', 10))
-    if limit > 20:
-        limit = 20
+    limit = int(request.GET.get('limit', 3))
+    if limit > 10:
+        limit = 10
 
     result = db_manager.get_events(auth.email, limit)
     if not result['success']:
@@ -130,7 +132,17 @@ def get_events(request):
 
 def add_count(request, sha1):
 
-    result = db_manager.add_count(sha1)
+    client_ip = get_client_ip(request)
+    result = db_manager.add_count(sha1, client_ip)
+
+    try:
+        with open('files/{}'.format(sha1), "rb") as f:
+            return HttpResponse(f.read(), content_type="image/png")
+    except IOError:
+        red = Image.new('RGBA', (1, 1))
+        response = HttpResponse(content_type="image/png")
+        red.save(response, "JPEG")
+        return response
 
     return HttpResponse("")
 
@@ -141,6 +153,7 @@ def create_simple_success_response(msg=None):
     }
     if msg:
         ret['msg'] = msg
+
     return HttpResponse(json.dumps(ret))
 
 
@@ -152,4 +165,13 @@ def create_failure_response(msg):
     return HttpResponse(json.dumps(ret))
 
 
+def get_client_ip(request):
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[-1].strip()
+    elif request.META.get('HTTP_X_REAL_IP'):
+        ip = request.META.get('HTTP_X_REAL_IP')
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
 

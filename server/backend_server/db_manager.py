@@ -1,11 +1,22 @@
 from django.db.models import F
 from django.utils.timezone import localtime, now
 from django.forms.models import model_to_dict
-from .models import User, Email
+from .models import User, Email, ViewEvents
 from datetime import datetime, timedelta
+from PIL import Image
 import hashlib
 import random
 import string
+import sys
+import traceback
+from django.db import connection
+
+
+def my_custom_sql(sql):
+    cursor = connection.cursor()
+    cursor.execute(sql)
+    row = cursor.fetchall()
+    return row
 
 
 def get_random_string(N):
@@ -79,7 +90,8 @@ def validate(email, pwd):
     else:
         return ret
 
-def add_count(sha1):
+
+def add_count(sha1, client_ip):
 
     ret = {
         'success': False
@@ -92,9 +104,12 @@ def add_count(sha1):
         return ret
 
     email = email[0]
-    email.count += 1
-    email.save()
+    email_id = email.id
+
+    event = ViewEvents(email_id=email_id, client_ip=client_ip)
+    event.save()
     ret['success'] = True
+
     return ret
 
 
@@ -104,14 +119,42 @@ def get_events(created_user, limit):
         'success': False
     }
     try:
-        emails = Email.objects.filter(create_user=created_user)[:limit]
+        emails = Email.objects.filter(create_user=created_user).order_by('-created_at')[:limit]
+        email_ids = []
+        for e in emails:
+            email_ids.append(str(e.id))
+        in_str = '(' + ','.join(email_ids) + ')'
+        print (in_str)
+        emails = my_custom_sql('''
+             SELECT id, email_id, cnt, client_ip, tar_email, detail, created_at from gmail_checker.backend_server_email D
+             INNER JOIN
+             (SELECT email_id, cnt, client_ip FROM gmail_checker.backend_server_viewevents A
+             INNER JOIN
+                    (
+                      SELECT count(0) as cnt, max(id) as gid FROM gmail_checker.backend_server_viewevents WHERE
+                          email_id in {}
+                          GROUP BY email_id
+                    )B
+             ON A.id = B.gid)C
+             ON D.id = C.email_id
+        '''.format(in_str))
     except:
+        traceback.print_exc()
         return ret
+
     ret['success'] = True
 
     data = []
     for x in emails:
-        data.append(model_to_dict(x))
+        datum = {
+            'email_id': x[1],
+            'cnt': x[2],
+            'client_ip': x[3],
+            'tar_email': x[4],
+            'detail': x[5],
+            'created_at': x[6].strftime("%Y-%m-%d %H:%M:%S")
+        }
+        data.append(datum)
 
     ret['data'] = data
 
@@ -130,11 +173,14 @@ def add_record(created_user, src, tar, detail, mail_id=None):
         ret['msg'] = 'duplicate record'
         return ret
 
-    email = Email(create_user=created_user, src_email=src, tar_email=tar, sha1=sha1, message_id=mail_id, detail=detail, count = -1)
+    email = Email(create_user=created_user, src_email=src, tar_email=tar, sha1=sha1, message_id=mail_id, detail=detail)
     email.save()
 
     ret['success'] = True
     ret['sha1'] = sha1
+
+    img = Image.new('RGB', (1, 1))
+    img.save('backend_server/files/{}.png'.format(sha1))
 
     return ret
 
